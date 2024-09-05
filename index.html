@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tennis Courts Openings</title>
+    <style>
+      .court-container {
+        margin-bottom: 20px;
+      }
+      .court-container h2 {
+        margin: 0;
+      }
+      .court-container ul {
+        list-style-type: none;
+        padding: 0;
+      }
+      .court-container ul li {
+        margin: 5px 0;
+      }
+      .loading {
+        font-size: 1.2em;
+        color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Openings for Tennis Courts</h1>
+    <br />
+    <label for="datePicker">Scraping for date:</label>
+    <input type="date" id="datePicker" />
+
+    <label for="searchField">Search by court name:</label>
+    <input type="text" id="searchField" placeholder="Search courts..." />
+
+    <div id="courtList" class="loading">Loading...</div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
