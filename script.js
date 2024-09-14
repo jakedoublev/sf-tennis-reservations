@@ -22,16 +22,15 @@ const getAvailableReservations = async (courtID, date) => {
       const key = date.toLocaleDateString("en-CA").replaceAll("-", "");
       const datedData = data.dates[key];
       if (datedData) {
-        // console.log("datedData", datedData);
         datedData.forEach(({ sports, courtNumber, schedule }) => {
           if (Array.isArray(sports) && sports.some((sport) => sport.name === "Tennis")) {
             const info = {};
             info.courtName = courtNumber;
             if (schedule) {
               const entries = Object.entries(schedule);
-              //   const windows = entries.filter(([_, rezzy]) => rezzy.referenceType === "RESERVABLE");
               const windows = entries.reduce((accum, [window, rezzy]) => {
-                if (rezzy?.referenceType === "RESERVABLE") accum.push(window);
+                const isReserveable = rezzy?.referenceType === "RESERVABLE";
+                if (isReserveable && !isTimePassed(window, date)) accum.push(formatRangeTo12Hour(window));
                 return accum;
               }, []);
               if (windows.length <= 0) return;
@@ -45,6 +44,61 @@ const getAvailableReservations = async (courtID, date) => {
     })
     .catch((err) => console.error(err));
 };
+
+function formatTo12Hour(hours, minutes) {
+  const period = hours >= 12 ? "PM" : "AM";
+  const adjustedHours = hours % 12 || 12; // Convert to 12-hour format
+  const formattedMinutes = minutes.toString().padStart(2, "0"); // Ensure two-digit minutes
+  return `${adjustedHours}:${formattedMinutes} ${period}`;
+}
+
+function formatRangeTo12Hour(timeStr) {
+  // Split the input string into start and end times
+  const [startTime, endTime] = timeStr.split(",").map((time) => time.trim());
+
+  // Convert times to hours and minutes
+  const toHoursMinutes = (time) => {
+    const [hours, minutes] = time.split(":").map(Number);
+    return { hours, minutes };
+  };
+
+  const { hours: startHours, minutes: startMinutes } = toHoursMinutes(startTime);
+  const { hours: endHours, minutes: endMinutes } = toHoursMinutes(endTime);
+
+  // Format to 12-hour time
+  const formattedStartTime = formatTo12Hour(startHours, startMinutes);
+  const formattedEndTime = formatTo12Hour(endHours, endMinutes);
+
+  return `${formattedStartTime} - ${formattedEndTime}`;
+}
+
+function isTimePassed(input, date) {
+  const now = new Date();
+  console.log("date", date);
+  // Check if the provided date is today
+  const isToday =
+    date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+
+  if (!isToday) {
+    return false; // Early exit if the date is not today
+  }
+
+  // Get the current time
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+
+  // Split the input string into individual times
+  const times = input.split(",").map((time) => time.trim());
+
+  // Convert each time to hours and minutes and compare with the current time
+  return times.some((time) => {
+    const [hour, minute] = time.split(":").map(Number);
+    if (hour < currentHour || (hour === currentHour && minute < currentMinute)) {
+      return true; // Time has passed
+    }
+    return false; // Time has not passed
+  });
+}
 
 const courts = {
   alicemarble: {
@@ -155,6 +209,7 @@ const courts = {
 
 const getAllOpenings = async (courts, date) => {
   const openings = {};
+  console.log("getting for date", date);
   for (const [name, info] of Object.entries(courts)) {
     const todayWindows = await getAvailableReservations(info.id, date);
     if (todayWindows.length > 0) {
@@ -220,8 +275,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchField = document.getElementById("searchField");
 
   const updateWithData = async (date, searchQuery) => {
+    console.log("updating for date", date);
     await getAllOpenings(courts, date)
       .then((openings) => {
+        // console.log("openings", openings);
         // Get the container element
         courtList.textContent = ""; // clear loading state
 
@@ -238,7 +295,8 @@ document.addEventListener("DOMContentLoaded", () => {
   datePicker.addEventListener("change", async (event) => {
     const selectedDate = event.target.value;
     courtList.textContent = "Loading...";
-    await updateWithData(new Date(selectedDate), searchField.value);
+
+    await updateWithData(parseLocalDate(selectedDate), searchField.value);
   });
 
   // Add event listener for search field changes
@@ -247,5 +305,14 @@ document.addEventListener("DOMContentLoaded", () => {
     displayCourts(courtList, searchQuery);
   });
 });
+
+function parseLocalDate(dateStr) {
+  // Extract year, month, and day from the input string
+  const [year, month, day] = dateStr.split("-").map(Number);
+
+  // Create a Date object in local time zone using the extracted values
+  // Note: JavaScript months are 0-indexed (0 = January, 8 = September)
+  return new Date(year, month - 1, day);
+}
 
 const getReserveLink = (courtName) => `https://rec.us/${courtName}`;
