@@ -74,7 +74,6 @@ function formatRangeTo12Hour(timeStr) {
 
 function isTimePassed(input, date) {
   const now = new Date();
-  console.log("date", date);
   // Check if the provided date is today
   const isToday =
     date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
